@@ -43,6 +43,10 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 
+    // Ktor Client (for HTTP requests to function containers)
+    implementation("io.ktor:ktor-client-core:$ktorVersion")
+    implementation("io.ktor:ktor-client-cio:$ktorVersion")
+
     // Dotenv for loading .env files
     implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
 

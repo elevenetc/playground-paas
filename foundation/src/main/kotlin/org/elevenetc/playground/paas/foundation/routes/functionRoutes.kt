@@ -5,8 +5,10 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import org.apache.hc.client5.http.async.methods.BasicHttpRequests.post
 import org.elevenetc.playground.paas.foundation.models.CreateFunctionRequest
 import org.elevenetc.playground.paas.foundation.models.UpdateFunctionRequest
+import org.elevenetc.playground.paas.foundation.services.FunctionExecutionResult
 import org.elevenetc.playground.paas.foundation.services.FunctionService
 import org.elevenetc.playground.paas.foundation.services.ProjectService
 
@@ -90,6 +92,31 @@ fun Route.functionRoutes(functionService: FunctionService, projectService: Proje
                 call.respond(HttpStatusCode.NoContent)
             } else {
                 call.respond(HttpStatusCode.NotFound, mapOf("error" to "Function not found"))
+            }
+        }
+
+        // Execute function
+        post("/{functionId}/execute") {
+            val functionId = call.parameters["functionId"] ?: return@post call.respond(
+                HttpStatusCode.BadRequest,
+                mapOf("error" to "Missing function ID")
+            )
+
+            val result = functionService.executeFunction(functionId)
+
+            when (result) {
+                is FunctionExecutionResult.Success -> {
+                    call.respond(HttpStatusCode.OK, mapOf("status" to "executed"))
+                }
+                is FunctionExecutionResult.NotFound -> {
+                    call.respond(HttpStatusCode.NotFound, mapOf("error" to "Function not found"))
+                }
+                is FunctionExecutionResult.NotReady -> {
+                    call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to result.message))
+                }
+                is FunctionExecutionResult.Error -> {
+                    call.respond(HttpStatusCode.InternalServerError, mapOf("error" to result.message))
+                }
             }
         }
     }

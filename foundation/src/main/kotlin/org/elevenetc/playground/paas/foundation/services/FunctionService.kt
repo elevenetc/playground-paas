@@ -1,5 +1,8 @@
 package org.elevenetc.playground.paas.foundation.services
 
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.request.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,6 +21,11 @@ class FunctionService(
     private val projectService: ProjectService
 ) {
     private val scope = CoroutineScope(Dispatchers.IO)
+    private val httpClient = HttpClient(CIO) {
+        engine {
+            requestTimeout = 5000 // 5 second timeout
+        }
+    }
 
     fun createFunction(projectId: String, request: CreateFunctionRequest): Function {
         // Extract name, parameters, and return type from source code
@@ -166,4 +174,36 @@ class FunctionService(
             functionRepository.updateError(functionId, "Unexpected cleanup error: ${e.message}")
         }
     }
+
+    suspend fun executeFunction(functionId: String): FunctionExecutionResult {
+        // Get function info
+        val function = functionRepository.findById(functionId)
+            ?: return FunctionExecutionResult.NotFound
+
+        // Check if function is ready
+        if (function.status != FunctionStatus.READY) {
+            return FunctionExecutionResult.NotReady("Function is ${function.status}, not READY")
+        }
+
+        // Check if we have port info
+        val port = function.port
+            ?: return FunctionExecutionResult.Error("Function container port not available")
+
+        return try {
+            // Make HTTP POST request to container's /execute endpoint
+            httpClient.post("http://localhost:$port/execute")
+
+            // Return success immediately (fire and forget)
+            FunctionExecutionResult.Success
+        } catch (e: Exception) {
+            FunctionExecutionResult.Error("Execution failed: ${e.message}")
+        }
+    }
+}
+
+sealed class FunctionExecutionResult {
+    object Success : FunctionExecutionResult()
+    object NotFound : FunctionExecutionResult()
+    data class NotReady(val message: String) : FunctionExecutionResult()
+    data class Error(val message: String) : FunctionExecutionResult()
 }
