@@ -1,0 +1,7 @@
+POST http://localhost:8080/api/projects/{{project_id}}/functions
+Content-Type: application/json
+
+{
+  "name": "add",
+  "sourceCode": "fun add(a: Int, b: Int): Int = a + b"
+}

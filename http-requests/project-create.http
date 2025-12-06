@@ -1,0 +1,7 @@
+POST http://localhost:8080/api/projects
+Content-Type: application/json
+
+{
+  "name": "Calculator",
+  "description": "A collection of mathematical functions and complex calculation chains"
+}

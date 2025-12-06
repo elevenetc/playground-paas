@@ -1,0 +1,7 @@
+PUT http://localhost:8080/api/projects/{{project_id}}
+Content-Type: application/json
+
+{
+  "name": "Calculator Pro",
+  "description": "Advanced mathematical functions with complex calculation chains"
+}

@@ -1,0 +1,1 @@
+DELETE http://localhost:8080/api/projects/{{project_id}}/functions/{{function_id}}

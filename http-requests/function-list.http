@@ -1,0 +1,5 @@
+GET http://localhost:8080/api/projects/{{project_id}}/functions
+
+###
+# List all functions (across all projects)
+GET http://localhost:8080/api/functions

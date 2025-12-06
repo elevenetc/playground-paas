@@ -1,0 +1,27 @@
+PUT http://localhost:8080/api/projects/{{project_id}}/functions/{{function_id}}
+Content-Type: application/json
+
+{
+  "name": "addOptimized",
+  "sourceCode": "fun addOptimized(a: Int, b: Int): Int {\n    return a + b\n}",
+  "returnType": "Int",
+  "parameters": [
+    {
+      "name": "a",
+      "type": "Int"
+    },
+    {
+      "name": "b",
+      "type": "Int"
+    }
+  ]
+}
+
+###
+# Update only source code
+PUT http://localhost:8080/api/projects/{{project_id}}/functions/{{function_id}}
+Content-Type: application/json
+
+{
+  "sourceCode": "fun add(a: Int, b: Int): Int {\n    println(\"Adding $a + $b\")\n    return a + b\n}"
+}
