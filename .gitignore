@@ -66,3 +66,5 @@ client/.env.production.local
 /.junie/memory/errors.md
 /.junie/memory/feedback.md
 /.junie/memory/tasks.md
+/agents/current-error.md
+/agents/current-task.md
