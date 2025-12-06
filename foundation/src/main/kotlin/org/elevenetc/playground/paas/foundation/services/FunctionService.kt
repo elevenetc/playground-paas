@@ -3,6 +3,8 @@ package org.elevenetc.playground.paas.foundation.services
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -25,6 +27,7 @@ class FunctionService(
         engine {
             requestTimeout = 5000 // 5 second timeout
         }
+        expectSuccess = false // Don't throw on non-2xx status codes
     }
 
     fun createFunction(projectId: String, request: CreateFunctionRequest): Function {
@@ -191,10 +194,26 @@ class FunctionService(
 
         return try {
             // Make HTTP POST request to container's /execute endpoint
-            httpClient.post("http://localhost:$port/execute")
+            val response: HttpResponse = httpClient.post("http://localhost:$port/execute") {
+                headers {
+                    append(HttpHeaders.Accept, "application/json")
+                    append(HttpHeaders.ContentType, "application/json")
+                }
+            }
 
-            // Return success immediately (fire and forget)
-            FunctionExecutionResult.Success
+            // Check status code
+            if (!response.status.isSuccess()) {
+                return FunctionExecutionResult.Error("Execution failed with status ${response.status.value}: ${response.bodyAsText()}")
+            }
+
+            // Extract result from response body
+            val responseBody = response.bodyAsText()
+            // Parse JSON to get the result field
+            val resultMatch = Regex(""""result"\s*:\s*"([^"]*)"""").find(responseBody)
+            val result = resultMatch?.groupValues?.get(1)
+                ?: return FunctionExecutionResult.Error("Failed to parse result from response: $responseBody")
+
+            FunctionExecutionResult.Success(result)
         } catch (e: Exception) {
             FunctionExecutionResult.Error("Execution failed: ${e.message}")
         }
@@ -218,7 +237,7 @@ class FunctionService(
 }
 
 sealed class FunctionExecutionResult {
-    object Success : FunctionExecutionResult()
+    data class Success(val result: String) : FunctionExecutionResult()
     object NotFound : FunctionExecutionResult()
     data class NotReady(val message: String) : FunctionExecutionResult()
     data class Error(val message: String) : FunctionExecutionResult()

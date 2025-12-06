@@ -28,10 +28,21 @@ fun extractParameters(sourceCode: String): List<FunctionParameter> {
 
 /**
  * Extracts return type from Kotlin source code.
+ * Regex approach: looks for ":" after function signature and before "{"
+ * If no ":" found, assumes Unit (no return value)
  * TODO: Replace with actual Kotlin compiler plugin integration
  */
 fun extractReturnType(sourceCode: String): String {
-    // Temporary hardcoded implementation
-    // In the future, this will use Kotlin compiler APIs to parse the function signature
-    return "Int"
+    // Regex to match: fun name(...): ReturnType {
+    // Pattern: find ":" followed by type, then "=" or "{"
+    val regex = Regex("""fun\s+\w+\s*\([^)]*\)\s*:\s*([^={]+)""")
+    val matchResult = regex.find(sourceCode)
+
+    return if (matchResult != null) {
+        // Found explicit return type
+        matchResult.groupValues[1].trim()
+    } else {
+        // No explicit return type = Unit
+        "Unit"
+    }
 }

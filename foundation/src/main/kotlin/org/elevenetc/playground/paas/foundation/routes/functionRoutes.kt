@@ -6,6 +6,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.apache.hc.client5.http.async.methods.BasicHttpRequests.post
+import org.apache.hc.client5.http.async.methods.SimpleHttpRequests.post
 import org.elevenetc.playground.paas.foundation.models.CreateFunctionRequest
 import org.elevenetc.playground.paas.foundation.models.UpdateFunctionRequest
 import org.elevenetc.playground.paas.foundation.services.FunctionExecutionResult
@@ -106,7 +107,7 @@ fun Route.functionRoutes(functionService: FunctionService, projectService: Proje
 
             when (result) {
                 is FunctionExecutionResult.Success -> {
-                    call.respond(HttpStatusCode.OK, mapOf("status" to "executed"))
+                    call.respond(HttpStatusCode.OK, mapOf("status" to "executed", "result" to result.result))
                 }
                 is FunctionExecutionResult.NotFound -> {
                     call.respond(HttpStatusCode.NotFound, mapOf("error" to "Function not found"))
