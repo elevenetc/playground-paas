@@ -15,6 +15,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { functionsApi } from '../api/functions';
 import { FunctionNode } from './FunctionNode';
+import { SourceModal } from './SourceModal';
 import type { Function as FunctionType } from '../types';
 
 interface FunctionGraphProps {
@@ -29,6 +30,11 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newFunctionName, setNewFunctionName] = useState('');
   const [newFunctionCode, setNewFunctionCode] = useState('');
+  const [sourceModalOpen, setSourceModalOpen] = useState(false);
+  const [debugSource, setDebugSource] = useState<string | null>(null);
+  const [sourceModalTitle, setSourceModalTitle] = useState('Generated Source');
+  const [executionResults, setExecutionResults] = useState<Record<string, string>>({});
+  const [executionErrors, setExecutionErrors] = useState<Record<string, string>>({});
   const queryClient = useQueryClient();
 
   const { data: functions = [], isLoading } = useQuery({
@@ -57,6 +63,52 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
 
   const executeMutation = useMutation({
     mutationFn: (functionId: string) => functionsApi.execute(projectId, functionId),
+    onSuccess: (data, functionId) => {
+      if (data.result) {
+        // Clear any previous error and set result
+        setExecutionErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[functionId];
+          return newErrors;
+        });
+        setExecutionResults(prev => ({ ...prev, [functionId]: data.result! }));
+      } else if (data.error) {
+        // Clear any previous result and set error
+        setExecutionResults(prev => {
+          const newResults = { ...prev };
+          delete newResults[functionId];
+          return newResults;
+        });
+        setExecutionErrors(prev => ({ ...prev, [functionId]: data.error! }));
+      }
+    },
+    onError: (error: any, functionId) => {
+      // Handle network/API errors
+      setExecutionResults(prev => {
+        const newResults = { ...prev };
+        delete newResults[functionId];
+        return newResults;
+      });
+      setExecutionErrors(prev => ({ ...prev, [functionId]: error.message || 'Execution failed' }));
+    },
+  });
+
+  const getSourceMutation = useMutation({
+    mutationFn: (functionId: string) => functionsApi.getDebugSource(projectId, functionId),
+    onSuccess: (data) => {
+      setDebugSource(data);
+      setSourceModalTitle('Generated Application Source');
+      setSourceModalOpen(true);
+    },
+  });
+
+  const getFunctionSourceMutation = useMutation({
+    mutationFn: (functionId: string) => functionsApi.getFunctionSource(projectId, functionId),
+    onSuccess: (data) => {
+      setDebugSource(data);
+      setSourceModalTitle('Generated User Function Source');
+      setSourceModalOpen(true);
+    },
   });
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -70,6 +122,14 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
     deleteMutation.mutate(functionId);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleGetSource = useCallback((functionId: string) => {
+    getSourceMutation.mutate(functionId);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleGetFunctionSource = useCallback((functionId: string) => {
+    getFunctionSourceMutation.mutate(functionId);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Update nodes when functions change
   useEffect(() => {
     const newNodes: Node[] = functions.map((func: FunctionType, index: number) => ({
@@ -80,10 +140,14 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
         function: func,
         onRun: handleRun,
         onDelete: handleDelete,
+        onGetSource: handleGetSource,
+        onGetFunctionSource: handleGetFunctionSource,
+        executionResult: executionResults[func.id] || null,
+        executionError: executionErrors[func.id] || null,
       },
     }));
     setNodes(newNodes);
-  }, [functions, setNodes, handleRun, handleDelete]);
+  }, [functions, setNodes, handleRun, handleDelete, handleGetSource, handleGetFunctionSource, executionResults, executionErrors]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -108,16 +172,28 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
   }
 
   return (
-    <div className="h-full flex flex-col bg-white">
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-800">Function Graph</h2>
-        <button
-          onClick={() => setIsCreating(true)}
-          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-        >
-          + Add Function
-        </button>
-      </div>
+    <>
+      <SourceModal
+        isOpen={sourceModalOpen}
+        onClose={() => {
+          setSourceModalOpen(false);
+          setDebugSource(null);
+        }}
+        source={debugSource}
+        loading={getSourceMutation.isPending || getFunctionSourceMutation.isPending}
+        title={sourceModalTitle}
+      />
+
+      <div className="h-full flex flex-col bg-white">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-800">Function Graph</h2>
+          <button
+            onClick={() => setIsCreating(true)}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+          >
+            + Add Function
+          </button>
+        </div>
 
       {isCreating && (
         <div className="p-4 border-b border-gray-200 bg-gray-50">
@@ -181,5 +257,6 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
         )}
       </div>
     </div>
+    </>
   );
 }

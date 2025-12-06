@@ -6,6 +6,10 @@ interface FunctionNodeData {
   function: FunctionType;
   onRun: (functionId: string) => void;
   onDelete: (functionId: string) => void;
+  onGetSource: (functionId: string) => void;
+  onGetFunctionSource: (functionId: string) => void;
+  executionResult?: string | null;
+  executionError?: string | null;
 }
 
 interface FunctionNodeProps {
@@ -38,6 +42,18 @@ export function FunctionNode({ data }: FunctionNodeProps) {
     data.onDelete(func.id);
   };
 
+  const handleGetSource = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    data.onGetSource(func.id);
+  };
+
+  const handleGetFunctionSource = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    data.onGetFunctionSource(func.id);
+  };
+
   const toggleMenu = (e: React.MouseEvent) => {
     e.stopPropagation();
     setMenuOpen(!menuOpen);
@@ -55,6 +71,18 @@ export function FunctionNode({ data }: FunctionNodeProps) {
       <pre className="text-xs font-mono whitespace-pre-wrap max-w-[400px] mb-2">
         {func.sourceCode}
       </pre>
+
+      {data.executionResult && (
+        <div className="text-xs bg-green-50 text-green-800 rounded px-2 py-1 mb-2 font-mono">
+          Result: {data.executionResult}
+        </div>
+      )}
+
+      {data.executionError && (
+        <div className="text-xs bg-red-50 text-red-800 rounded px-2 py-1 mb-2 font-mono">
+          Error: {data.executionError}
+        </div>
+      )}
 
       <div className="flex gap-2 items-center border-t border-current/20 pt-2">
         <button
@@ -81,7 +109,19 @@ export function FunctionNode({ data }: FunctionNodeProps) {
                 className="fixed inset-0 z-10"
                 onClick={() => setMenuOpen(false)}
               />
-              <div className="absolute left-0 top-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-20 min-w-[120px]">
+              <div className="absolute left-0 top-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-20 min-w-[180px]">
+                <button
+                  onClick={handleGetSource}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100 transition-colors text-sm"
+                >
+                  Get execution source
+                </button>
+                <button
+                  onClick={handleGetFunctionSource}
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100 transition-colors text-sm"
+                >
+                  Get function source
+                </button>
                 <button
                   onClick={handleDelete}
                   className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 transition-colors text-sm"

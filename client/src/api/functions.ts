@@ -43,7 +43,36 @@ export const functionsApi = {
     await apiClient.delete(`/api/projects/${projectId}/functions/${functionId}`);
   },
 
-  execute: async (projectId: string, functionId: string): Promise<void> => {
-    await apiClient.post(`/api/projects/${projectId}/functions/${functionId}/execute`);
+  execute: async (projectId: string, functionId: string): Promise<{ status: string; result?: string; error?: string }> => {
+    try {
+      const response = await apiClient.post<{ status: string; result?: string; error?: string }>(
+        `/api/projects/${projectId}/functions/${functionId}/execute`
+      );
+      return response.data;
+    } catch (error: any) {
+      // Handle non-2xx responses - extract error from response body
+      if (error.response?.data?.error) {
+        return {
+          status: 'error',
+          error: error.response.data.error,
+        };
+      }
+      // Fallback for network errors
+      throw error;
+    }
+  },
+
+  getDebugSource: async (projectId: string, functionId: string): Promise<string> => {
+    const response = await apiClient.get<string>(
+      `/api/projects/${projectId}/functions/${functionId}/debug/application-source`
+    );
+    return response.data;
+  },
+
+  getFunctionSource: async (projectId: string, functionId: string): Promise<string> => {
+    const response = await apiClient.get<string>(
+      `/api/projects/${projectId}/functions/${functionId}/debug/function-source`
+    );
+    return response.data;
   },
 };
