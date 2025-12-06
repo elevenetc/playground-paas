@@ -29,11 +29,6 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newFunctionName, setNewFunctionName] = useState('');
   const [newFunctionCode, setNewFunctionCode] = useState('');
-  const [contextMenu, setContextMenu] = useState<{
-    x: number;
-    y: number;
-    nodeId: string;
-  } | null>(null);
   const queryClient = useQueryClient();
 
   const { data: functions = [], isLoading } = useQuery({
@@ -57,12 +52,23 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
     mutationFn: (functionId: string) => functionsApi.delete(projectId, functionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['functions', projectId] });
-      setContextMenu(null);
     },
+  });
+
+  const executeMutation = useMutation({
+    mutationFn: (functionId: string) => functionsApi.execute(projectId, functionId),
   });
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  const handleRun = useCallback((functionId: string) => {
+    executeMutation.mutate(functionId);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDelete = useCallback((functionId: string) => {
+    deleteMutation.mutate(functionId);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update nodes when functions change
   useEffect(() => {
@@ -70,10 +76,14 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
       id: func.id,
       type: 'functionNode',
       position: { x: 100 + (index % 3) * 300, y: 100 + Math.floor(index / 3) * 200 },
-      data: { function: func },
+      data: {
+        function: func,
+        onRun: handleRun,
+        onDelete: handleDelete,
+      },
     }));
     setNodes(newNodes);
-  }, [functions, setNodes]);
+  }, [functions, setNodes, handleRun, handleDelete]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -88,32 +98,6 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
     });
   };
 
-  const handleNodeContextMenu = useCallback(
-    (event: React.MouseEvent, node: Node) => {
-      event.preventDefault();
-      setContextMenu({
-        x: event.clientX,
-        y: event.clientY,
-        nodeId: node.id,
-      });
-    },
-    []
-  );
-
-  const handleDelete = () => {
-    if (contextMenu) {
-      deleteMutation.mutate(contextMenu.nodeId);
-    }
-  };
-
-  // Close context menu on click outside
-  useEffect(() => {
-    const handleClick = () => setContextMenu(null);
-    if (contextMenu) {
-      document.addEventListener('click', handleClick);
-      return () => document.removeEventListener('click', handleClick);
-    }
-  }, [contextMenu]);
 
   if (isLoading) {
     return (
@@ -188,7 +172,6 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onNodeContextMenu={handleNodeContextMenu}
             nodeTypes={nodeTypes}
             fitView
           >
@@ -197,23 +180,6 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
           </ReactFlow>
         )}
       </div>
-
-      {/* Context Menu */}
-      {contextMenu && (
-        <div
-          className="fixed bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={handleDelete}
-            disabled={deleteMutation.isPending}
-            className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-          </button>
-        </div>
-      )}
     </div>
   );
 }

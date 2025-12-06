@@ -42,4 +42,8 @@ export const functionsApi = {
   delete: async (projectId: string, functionId: string): Promise<void> => {
     await apiClient.delete(`/api/projects/${projectId}/functions/${functionId}`);
   },
+
+  execute: async (projectId: string, functionId: string): Promise<void> => {
+    await apiClient.post(`/api/projects/${projectId}/functions/${functionId}/execute`);
+  },
 };
