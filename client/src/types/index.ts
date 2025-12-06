@@ -28,7 +28,9 @@ export enum FunctionStatus {
   COMPILING = 'COMPILING',
   READY = 'READY',
   FAILED = 'FAILED',
-  STOPPED = 'STOPPED'
+  STOPPED = 'STOPPED',
+  STOPPING = 'STOPPING',
+  DELETING = 'DELETING'
 }
 
 export interface Function {
@@ -39,6 +41,7 @@ export interface Function {
   returnType: string;
   parameters: FunctionParameter[];
   status: FunctionStatus;
+  containerName: string | null;
   containerId: string | null;
   port: number | null;
   imageTag: string | null;

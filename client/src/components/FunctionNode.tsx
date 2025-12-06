@@ -15,6 +15,8 @@ const STATUS_COLORS: Record<FunctionStatus, string> = {
   READY: 'bg-green-100 border-green-500 text-green-800',
   FAILED: 'bg-red-100 border-red-500 text-red-800',
   STOPPED: 'bg-gray-100 border-gray-500 text-gray-800',
+  STOPPING: 'bg-orange-100 border-orange-500 text-orange-800',
+  DELETING: 'bg-purple-100 border-purple-500 text-purple-800',
 };
 
 export function FunctionNode({ data }: FunctionNodeProps) {
