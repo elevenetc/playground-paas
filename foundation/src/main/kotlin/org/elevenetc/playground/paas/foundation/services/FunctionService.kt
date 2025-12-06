@@ -199,6 +199,22 @@ class FunctionService(
             FunctionExecutionResult.Error("Execution failed: ${e.message}")
         }
     }
+
+    suspend fun getGeneratedApplicationSource(projectId: String, functionId: String): String? {
+        // Get project name
+        val project = projectService.getProjectById(projectId) ?: return null
+        val projectName = project.name.lowercase().replace(Regex("[^a-z0-9-]"), "-")
+
+        return dockerBuildService.getGeneratedApplicationSource(projectName, functionId)
+    }
+
+    suspend fun getGeneratedUserFunctionSource(projectId: String, functionId: String): String? {
+        // Get project name
+        val project = projectService.getProjectById(projectId) ?: return null
+        val projectName = project.name.lowercase().replace(Regex("[^a-z0-9-]"), "-")
+
+        return dockerBuildService.getGeneratedUserFunctionSource(projectName, functionId)
+    }
 }
 
 sealed class FunctionExecutionResult {

@@ -119,6 +119,48 @@ fun Route.functionRoutes(functionService: FunctionService, projectService: Proje
                 }
             }
         }
+
+        // Debug endpoint - get generated Application.kt source
+        get("/{functionId}/debug/application-source") {
+            val functionId = call.parameters["functionId"] ?: return@get call.respond(
+                HttpStatusCode.BadRequest,
+                mapOf("error" to "Missing function ID")
+            )
+
+            val projectId = call.parameters["projectId"] ?: return@get call.respond(
+                HttpStatusCode.BadRequest,
+                mapOf("error" to "Missing project ID")
+            )
+
+            val source = functionService.getGeneratedApplicationSource(projectId, functionId)
+
+            if (source != null) {
+                call.respondText(source, ContentType.Text.Plain)
+            } else {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Generated source not found"))
+            }
+        }
+
+        // Debug endpoint - get generated UserFunction.kt source
+        get("/{functionId}/debug/function-source") {
+            val functionId = call.parameters["functionId"] ?: return@get call.respond(
+                HttpStatusCode.BadRequest,
+                mapOf("error" to "Missing function ID")
+            )
+
+            val projectId = call.parameters["projectId"] ?: return@get call.respond(
+                HttpStatusCode.BadRequest,
+                mapOf("error" to "Missing project ID")
+            )
+
+            val source = functionService.getGeneratedUserFunctionSource(projectId, functionId)
+
+            if (source != null) {
+                call.respondText(source, ContentType.Text.Plain)
+            } else {
+                call.respond(HttpStatusCode.NotFound, mapOf("error" to "Generated source not found"))
+            }
+        }
     }
 
     // Alternative route for getting all functions (not scoped by project)

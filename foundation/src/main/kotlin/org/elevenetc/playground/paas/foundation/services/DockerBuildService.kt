@@ -59,6 +59,7 @@ class DockerBuildService {
                     functionBuildDir,
                     "src/main/kotlin/org/elevenetc/playground/paas/runtime/Application.kt"
                 )
+
                 val applicationContent = applicationFile.readText()
                     .replace("USER_FUNCTION_CALL", "$functionName()")
                 applicationFile.writeText(applicationContent)
@@ -167,6 +168,48 @@ class DockerBuildService {
                 ContainerDeletionResult.Success
             } catch (e: Exception) {
                 ContainerDeletionResult.Failure("Container deletion error: ${e.message}")
+            }
+        }
+    }
+
+    suspend fun getGeneratedApplicationSource(projectName: String, functionId: String): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val projectBuildDir = File(buildDir, projectName)
+                val functionBuildDir = File(projectBuildDir, functionId)
+                val applicationFile = File(
+                    functionBuildDir,
+                    "src/main/kotlin/org/elevenetc/playground/paas/runtime/Application.kt"
+                )
+
+                if (applicationFile.exists()) {
+                    applicationFile.readText()
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    suspend fun getGeneratedUserFunctionSource(projectName: String, functionId: String): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val projectBuildDir = File(buildDir, projectName)
+                val functionBuildDir = File(projectBuildDir, functionId)
+                val userFunctionFile = File(
+                    functionBuildDir,
+                    "src/main/kotlin/org/elevenetc/playground/paas/runtime/UserFunction.kt"
+                )
+
+                if (userFunctionFile.exists()) {
+                    userFunctionFile.readText()
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                null
             }
         }
     }
