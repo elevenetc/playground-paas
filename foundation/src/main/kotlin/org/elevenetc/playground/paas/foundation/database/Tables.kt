@@ -59,6 +59,7 @@ object FunctionsTable : Table("functions") {
     val returnType = varchar("return_type", 128)
     val parameters = text("parameters") // JSON string: [{"name": "a", "type": "Int"}]
     val status = varchar("status", 50)
+    val containerName = varchar("container_name", 256).nullable() // Docker container name
     val containerId = varchar("container_id", 256).nullable() // Docker container ID
     val port = integer("port").nullable()
     val imageTag = varchar("image_tag", 256).nullable()

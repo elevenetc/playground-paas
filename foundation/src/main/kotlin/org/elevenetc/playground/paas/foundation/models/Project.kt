@@ -23,6 +23,7 @@ data class Function(
     val returnType: String,
     val parameters: List<FunctionParameter>,
     val status: FunctionStatus,
+    val containerName: String? = null,
     val containerId: String? = null,
     val port: Int? = null,
     val imageTag: String? = null,
@@ -45,7 +46,9 @@ enum class FunctionStatus {
     COMPILING,
     READY,
     FAILED,
-    STOPPED
+    STOPPED,
+    STOPPING,
+    DELETING
 }
 
 // Request DTOs

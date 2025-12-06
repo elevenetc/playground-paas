@@ -21,6 +21,7 @@ import org.elevenetc.playground.paas.foundation.routes.appRoutes
 import org.elevenetc.playground.paas.foundation.routes.functionRoutes
 import org.elevenetc.playground.paas.foundation.routes.healthRoutes
 import org.elevenetc.playground.paas.foundation.routes.projectRoutes
+import org.elevenetc.playground.paas.foundation.services.DockerBuildService
 import org.elevenetc.playground.paas.foundation.services.DockerService
 import org.elevenetc.playground.paas.foundation.services.FunctionService
 import org.elevenetc.playground.paas.foundation.services.ProjectService
@@ -52,8 +53,9 @@ fun Application.module(appConfig: Dotenv) {
 
     // Initialize services
     val dockerService = DockerService(appConfig)
+    val dockerBuildService = DockerBuildService()
     val projectService = ProjectService(projectRepository)
-    val functionService = FunctionService(functionRepository)
+    val functionService = FunctionService(functionRepository, dockerBuildService, projectService)
 
     // Configure plugins
     install(CORS) {

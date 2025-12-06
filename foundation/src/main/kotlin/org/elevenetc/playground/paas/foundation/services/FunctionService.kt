@@ -1,14 +1,23 @@
 package org.elevenetc.playground.paas.foundation.services
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.elevenetc.playground.paas.foundation.compiler.extractFunctionName
 import org.elevenetc.playground.paas.foundation.compiler.extractParameters
 import org.elevenetc.playground.paas.foundation.compiler.extractReturnType
 import org.elevenetc.playground.paas.foundation.models.CreateFunctionRequest
 import org.elevenetc.playground.paas.foundation.models.Function
+import org.elevenetc.playground.paas.foundation.models.FunctionStatus
 import org.elevenetc.playground.paas.foundation.models.UpdateFunctionRequest
 import org.elevenetc.playground.paas.foundation.repositories.FunctionRepository
 
-class FunctionService(private val functionRepository: FunctionRepository) {
+class FunctionService(
+    private val functionRepository: FunctionRepository,
+    private val dockerBuildService: DockerBuildService,
+    private val projectService: ProjectService
+) {
+    private val scope = CoroutineScope(Dispatchers.IO)
 
     fun createFunction(projectId: String, request: CreateFunctionRequest): Function {
         // Extract name, parameters, and return type from source code
@@ -16,13 +25,70 @@ class FunctionService(private val functionRepository: FunctionRepository) {
         val parameters = extractParameters(request.sourceCode)
         val returnType = extractReturnType(request.sourceCode)
 
-        return functionRepository.create(
+        val function = functionRepository.create(
             projectId = projectId,
             name = name,
             sourceCode = request.sourceCode,
             returnType = returnType,
             parameters = parameters
         )
+
+        // Trigger Docker build asynchronously
+        scope.launch {
+            buildAndDeployFunction(function)
+        }
+
+        return function
+    }
+
+    private suspend fun buildAndDeployFunction(function: Function) {
+        try {
+            // Update status to COMPILING
+            functionRepository.updateStatus(function.id, FunctionStatus.COMPILING)
+
+            // Get project info for naming
+            val project = projectService.getProjectById(function.projectId)
+            val projectName = project?.name?.lowercase()?.replace(Regex("[^a-z0-9-]"), "-") ?: "unknown"
+
+            // Build Docker image
+            when (val buildResult = dockerBuildService.buildFunctionImage(
+                functionId = function.id,
+                projectName = projectName,
+                functionName = function.name,
+                sourceCode = function.sourceCode
+            )) {
+                is BuildResult.Success -> {
+                    // Run container
+                    when (val containerResult = dockerBuildService.runContainer(
+                        imageName = buildResult.imageName,
+                        projectName = projectName,
+                        functionName = function.name
+                    )) {
+                        is ContainerResult.Success -> {
+                            // Update function with container info
+                            functionRepository.updateContainerInfo(
+                                functionId = function.id,
+                                containerName = containerResult.containerName,
+                                containerId = containerResult.containerId,
+                                port = containerResult.port,
+                                imageTag = buildResult.imageName,
+                                status = FunctionStatus.READY
+                            )
+                        }
+
+                        is ContainerResult.Failure -> {
+                            functionRepository.updateError(function.id, containerResult.error)
+                        }
+                    }
+                }
+
+                is BuildResult.Failure -> {
+                    functionRepository.updateError(function.id, buildResult.error)
+                }
+            }
+        } catch (e: Exception) {
+            functionRepository.updateError(function.id, "Build error: ${e.message}")
+        }
     }
 
     fun getAllFunctions(): List<Function> {
@@ -57,6 +123,47 @@ class FunctionService(private val functionRepository: FunctionRepository) {
     }
 
     fun deleteFunction(id: String): Boolean {
+        // Get function info before deleting
+        val function = functionRepository.findById(id) ?: return false
+
+        // If function has a container, set state to DELETING and clean it up
+        if (function.containerName != null) {
+            // Set status to DELETING
+            functionRepository.updateStatus(id, FunctionStatus.DELETING)
+
+            // Stop and remove container asynchronously
+            scope.launch {
+                cleanupAndDeleteFunction(id, function.containerName)
+            }
+
+            // Return true - deletion is in progress
+            return true
+        }
+
+        // No container, safe to delete immediately
         return functionRepository.delete(id)
+    }
+
+    private suspend fun cleanupAndDeleteFunction(functionId: String, containerName: String) {
+        try {
+            // Attempt to stop and remove container
+            when (val result = dockerBuildService.stopAndRemoveContainer(containerName)) {
+                is ContainerDeletionResult.Success -> {
+                    // Successfully cleaned up, now delete from DB
+                    functionRepository.delete(functionId)
+                }
+
+                is ContainerDeletionResult.Failure -> {
+                    // Failed to cleanup container, update status with error
+                    // Keep the function record so user can retry
+                    functionRepository.updateStatus(functionId, FunctionStatus.FAILED)
+                    functionRepository.updateError(functionId, "Container cleanup failed: ${result.error}")
+                }
+            }
+        } catch (e: Exception) {
+            // Unexpected error during cleanup
+            functionRepository.updateStatus(functionId, FunctionStatus.FAILED)
+            functionRepository.updateError(functionId, "Unexpected cleanup error: ${e.message}")
+        }
     }
 }

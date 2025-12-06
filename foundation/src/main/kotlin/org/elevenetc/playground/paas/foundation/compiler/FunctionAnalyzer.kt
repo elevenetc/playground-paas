@@ -7,9 +7,10 @@ import org.elevenetc.playground.paas.foundation.models.FunctionParameter
  * TODO: Replace with actual Kotlin compiler plugin integration
  */
 fun extractFunctionName(sourceCode: String): String {
-    // Temporary hardcoded implementation
-    // In the future, this will use Kotlin compiler APIs to parse the function signature
-    return "add"
+    // Regex to match: "fun" + space + function_name + "("
+    val regex = Regex("""fun\s+(\w+)\s*\(""")
+    val matchResult = regex.find(sourceCode)
+    return matchResult?.groupValues?.get(1) ?: "unknownFunction"
 }
 
 /**

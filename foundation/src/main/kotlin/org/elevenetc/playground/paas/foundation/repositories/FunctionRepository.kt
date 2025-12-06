@@ -102,24 +102,44 @@ class FunctionRepository {
         }
     }
 
-    fun updateStatus(
-        id: String,
-        status: FunctionStatus,
-        containerId: String? = null,
-        port: Int? = null,
-        imageTag: String? = null,
-        errorMessage: String? = null
-    ): Function? {
+    fun updateStatus(id: String, status: FunctionStatus): Function? {
         return transaction {
             FunctionsTable.update({ FunctionsTable.id eq id }) {
                 it[FunctionsTable.status] = status.name
-                if (containerId != null) it[FunctionsTable.containerId] = containerId
-                if (port != null) it[FunctionsTable.port] = port
-                if (imageTag != null) it[FunctionsTable.imageTag] = imageTag
-                if (errorMessage != null) it[FunctionsTable.errorMessage] = errorMessage
                 it[updatedAt] = Instant.now()
             }
+            findById(id)
+        }
+    }
 
+    fun updateContainerInfo(
+        functionId: String,
+        containerName: String,
+        containerId: String,
+        port: Int,
+        imageTag: String,
+        status: FunctionStatus
+    ): Function? {
+        return transaction {
+            FunctionsTable.update({ FunctionsTable.id eq functionId }) {
+                it[FunctionsTable.containerName] = containerName
+                it[FunctionsTable.containerId] = containerId
+                it[FunctionsTable.port] = port
+                it[FunctionsTable.imageTag] = imageTag
+                it[FunctionsTable.status] = status.name
+                it[updatedAt] = Instant.now()
+            }
+            findById(functionId)
+        }
+    }
+
+    fun updateError(id: String, errorMessage: String): Function? {
+        return transaction {
+            FunctionsTable.update({ FunctionsTable.id eq id }) {
+                it[FunctionsTable.status] = FunctionStatus.FAILED.name
+                it[FunctionsTable.errorMessage] = errorMessage
+                it[updatedAt] = Instant.now()
+            }
             findById(id)
         }
     }
@@ -142,6 +162,7 @@ class FunctionRepository {
             returnType = row[FunctionsTable.returnType],
             parameters = parameters,
             status = FunctionStatus.valueOf(row[FunctionsTable.status]),
+            containerName = row[FunctionsTable.containerName],
             containerId = row[FunctionsTable.containerId],
             port = row[FunctionsTable.port],
             imageTag = row[FunctionsTable.imageTag],
