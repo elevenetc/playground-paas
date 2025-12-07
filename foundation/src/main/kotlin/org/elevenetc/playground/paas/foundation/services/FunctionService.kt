@@ -14,6 +14,8 @@ import org.elevenetc.playground.paas.foundation.compiler.extractReturnType
 import org.elevenetc.playground.paas.foundation.models.CreateFunctionRequest
 import org.elevenetc.playground.paas.foundation.models.Function
 import org.elevenetc.playground.paas.foundation.models.FunctionStatus
+import org.elevenetc.playground.paas.foundation.models.FunctionStatus.BUILD_FAILED
+import org.elevenetc.playground.paas.foundation.models.FunctionStatus.RUN_FAILED
 import org.elevenetc.playground.paas.foundation.models.UpdateFunctionRequest
 import org.elevenetc.playground.paas.foundation.repositories.FunctionRepository
 
@@ -88,17 +90,17 @@ class FunctionService(
                         }
 
                         is ContainerResult.Failure -> {
-                            functionRepository.updateError(function.id, containerResult.error)
+                            functionRepository.updateStatus(function.id, RUN_FAILED, containerResult.error)
                         }
                     }
                 }
 
                 is BuildResult.Failure -> {
-                    functionRepository.updateError(function.id, buildResult.error)
+                    functionRepository.updateStatus(function.id, BUILD_FAILED, buildResult.error)
                 }
             }
         } catch (e: Exception) {
-            functionRepository.updateError(function.id, "Build error: ${e.message}")
+            functionRepository.updateStatus(function.id, BUILD_FAILED, "Unknown build error: ${e.message}")
         }
     }
 
@@ -167,14 +169,12 @@ class FunctionService(
                 is ContainerDeletionResult.Failure -> {
                     // Failed to cleanup container, update status with error
                     // Keep the function record so user can retry
-                    functionRepository.updateStatus(functionId, FunctionStatus.FAILED)
-                    functionRepository.updateError(functionId, "Container cleanup failed: ${result.error}")
+                    functionRepository.updateStatus(functionId, RUN_FAILED, "Container cleanup failed: ${result.error}")
                 }
             }
         } catch (e: Exception) {
             // Unexpected error during cleanup
-            functionRepository.updateStatus(functionId, FunctionStatus.FAILED)
-            functionRepository.updateError(functionId, "Unexpected cleanup error: ${e.message}")
+            functionRepository.updateStatus(functionId, RUN_FAILED, "Unexpected cleanup error: ${e.message}")
         }
     }
 

@@ -12,7 +12,9 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Instant
 import java.util.*
 
-class FunctionRepository {
+class FunctionRepository(
+    private val statusHistoryRepository: FunctionStatusHistoryRepository
+) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -26,6 +28,7 @@ class FunctionRepository {
         return transaction {
             val id = UUID.randomUUID().toString()
             val now = Instant.now()
+            val pendingStatus = FunctionStatus.PENDING
 
             FunctionsTable.insert {
                 it[FunctionsTable.id] = id
@@ -34,10 +37,17 @@ class FunctionRepository {
                 it[FunctionsTable.sourceCode] = sourceCode
                 it[FunctionsTable.returnType] = returnType
                 it[FunctionsTable.parameters] = json.encodeToString(parameters)
-                it[status] = FunctionStatus.PENDING.name
+                it[status] = pendingStatus.name
                 it[createdAt] = now
                 it[updatedAt] = now
             }
+
+            // Record initial status transition
+            statusHistoryRepository.recordTransitionIfChanged(
+                functionId = id,
+                prevStatus = null,
+                toStatus = pendingStatus
+            )
 
             Function(
                 id = id,
@@ -46,7 +56,7 @@ class FunctionRepository {
                 sourceCode = sourceCode,
                 returnType = returnType,
                 parameters = parameters,
-                status = FunctionStatus.PENDING,
+                status = pendingStatus,
                 createdAt = now,
                 updatedAt = now
             )
@@ -84,7 +94,8 @@ class FunctionRepository {
         parameters: List<FunctionParameter>?
     ): Function? {
         return transaction {
-            val existing = findById(id) ?: return@transaction null
+            // Check if function exists
+            if (findById(id) == null) return@transaction null
 
             FunctionsTable.update({ FunctionsTable.id eq id }) {
                 if (name != null) it[FunctionsTable.name] = name
@@ -102,12 +113,33 @@ class FunctionRepository {
         }
     }
 
-    fun updateStatus(id: String, status: FunctionStatus): Function? {
+    /**
+     * Updates function status with automatic history tracking.
+     * @param errorMessage Optional error message to store in function and history metadata
+     */
+    fun updateStatus(id: String, status: FunctionStatus, errorMessage: String? = null): Function? {
         return transaction {
+            // Get current status directly from the database without nested transaction
+            val oldStatus = FunctionsTable
+                .selectAll()
+                .where { FunctionsTable.id eq id }
+                .map { FunctionStatus.valueOf(it[FunctionsTable.status]) }
+                .singleOrNull() ?: return@transaction null
+
+            // Update status and optionally error message
             FunctionsTable.update({ FunctionsTable.id eq id }) {
                 it[FunctionsTable.status] = status.name
+                it[FunctionsTable.errorMessage] = errorMessage
                 it[updatedAt] = Instant.now()
             }
+
+            statusHistoryRepository.recordTransitionIfChanged(
+                functionId = id,
+                prevStatus = oldStatus,
+                toStatus = status,
+                metadata = if (errorMessage != null) mapOf("error" to errorMessage) else null
+            )
+
             findById(id)
         }
     }
@@ -121,6 +153,12 @@ class FunctionRepository {
         status: FunctionStatus
     ): Function? {
         return transaction {
+            val prevStatus = FunctionsTable
+                .selectAll()
+                .where { FunctionsTable.id eq functionId }
+                .map { FunctionStatus.valueOf(it[FunctionsTable.status]) }
+                .singleOrNull() ?: return@transaction null
+
             FunctionsTable.update({ FunctionsTable.id eq functionId }) {
                 it[FunctionsTable.containerName] = containerName
                 it[FunctionsTable.containerId] = containerId
@@ -129,18 +167,14 @@ class FunctionRepository {
                 it[FunctionsTable.status] = status.name
                 it[updatedAt] = Instant.now()
             }
-            findById(functionId)
-        }
-    }
 
-    fun updateError(id: String, errorMessage: String): Function? {
-        return transaction {
-            FunctionsTable.update({ FunctionsTable.id eq id }) {
-                it[FunctionsTable.status] = FunctionStatus.FAILED.name
-                it[FunctionsTable.errorMessage] = errorMessage
-                it[updatedAt] = Instant.now()
-            }
-            findById(id)
+            statusHistoryRepository.recordTransitionIfChanged(
+                functionId = functionId,
+                prevStatus = prevStatus,
+                toStatus = status
+            )
+
+            findById(functionId)
         }
     }
 

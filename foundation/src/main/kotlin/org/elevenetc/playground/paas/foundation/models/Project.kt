@@ -44,8 +44,9 @@ data class FunctionParameter(
 enum class FunctionStatus {
     PENDING,
     COMPILING,
+    RUN_FAILED,
+    BUILD_FAILED,
     READY,
-    FAILED,
     STOPPED,
     STOPPING,
     DELETING

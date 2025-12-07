@@ -14,9 +14,11 @@ import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
+import org.elevenetc.playground.paas.foundation.database.FunctionStatusHistoryTable
 import org.elevenetc.playground.paas.foundation.database.FunctionsTable
 import org.elevenetc.playground.paas.foundation.database.ProjectsTable
 import org.elevenetc.playground.paas.foundation.repositories.FunctionRepository
+import org.elevenetc.playground.paas.foundation.repositories.FunctionStatusHistoryRepository
 import org.elevenetc.playground.paas.foundation.repositories.ProjectRepository
 import org.elevenetc.playground.paas.foundation.routes.functionRoutes
 import org.elevenetc.playground.paas.foundation.routes.projectRoutes
@@ -34,18 +36,19 @@ fun Application.testModule(resetDatabase: Boolean = true) {
     // Create and/or reset tables
     if (resetDatabase) {
         transaction(database) {
-            SchemaUtils.drop(FunctionsTable, ProjectsTable)
-            SchemaUtils.create(ProjectsTable, FunctionsTable)
+            SchemaUtils.drop(FunctionStatusHistoryTable, FunctionsTable, ProjectsTable)
+            SchemaUtils.create(ProjectsTable, FunctionsTable, FunctionStatusHistoryTable)
         }
     } else {
         transaction(database) {
-            SchemaUtils.createMissingTablesAndColumns(ProjectsTable, FunctionsTable)
+            SchemaUtils.createMissingTablesAndColumns(ProjectsTable, FunctionsTable, FunctionStatusHistoryTable)
         }
     }
 
     // Initialize repositories
     val projectRepository = ProjectRepository()
-    val functionRepository = FunctionRepository()
+    val functionStatusHistoryRepository = FunctionStatusHistoryRepository()
+    val functionRepository = FunctionRepository(functionStatusHistoryRepository)
 
     // Initialize services
     val dockerBuildService = DockerBuildService()

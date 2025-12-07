@@ -1,5 +1,6 @@
 package org.elevenetc.playground.paas.foundation.database
 
+import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.timestamp
 
@@ -28,6 +29,18 @@ object FunctionsTable : Table("functions") {
     val errorMessage = text("error_message").nullable()
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+object FunctionStatusHistoryTable : Table("function_status_history") {
+    val id = varchar("id", 128)
+    val functionId = varchar("function_id", 128).references(FunctionsTable.id, onDelete = ReferenceOption.CASCADE)
+    val fromStatus = varchar("from_status", 50).nullable() // null for initial creation
+    val toStatus = varchar("to_status", 50)
+    val transitionTime = timestamp("transition_time")
+    val durationMs = long("duration_ms").nullable() // Time spent in fromStatus
+    val metadata = text("metadata").nullable() // JSON for extra context (errors, etc)
 
     override val primaryKey = PrimaryKey(id)
 }
