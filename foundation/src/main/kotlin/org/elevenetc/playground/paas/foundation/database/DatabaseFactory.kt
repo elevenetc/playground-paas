@@ -12,7 +12,7 @@ object DatabaseFactory {
         val database = Database.connect(createHikariDataSource(config))
 
         transaction(database) {
-            SchemaUtils.create(AppsTable, DeploymentsTable, ContainersTable, ProjectsTable, FunctionsTable)
+            SchemaUtils.create(ProjectsTable, FunctionsTable)
         }
     }
 

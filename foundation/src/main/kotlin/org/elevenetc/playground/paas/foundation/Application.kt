@@ -14,10 +14,8 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
 import org.elevenetc.playground.paas.foundation.database.DatabaseFactory
-import org.elevenetc.playground.paas.foundation.repositories.AppRepository
 import org.elevenetc.playground.paas.foundation.repositories.FunctionRepository
 import org.elevenetc.playground.paas.foundation.repositories.ProjectRepository
-import org.elevenetc.playground.paas.foundation.routes.appRoutes
 import org.elevenetc.playground.paas.foundation.routes.functionRoutes
 import org.elevenetc.playground.paas.foundation.routes.healthRoutes
 import org.elevenetc.playground.paas.foundation.routes.projectRoutes
@@ -47,7 +45,6 @@ fun Application.module(appConfig: Dotenv) {
     DatabaseFactory.init(appConfig)
 
     // Initialize repositories
-    val appRepository = AppRepository()
     val projectRepository = ProjectRepository()
     val functionRepository = FunctionRepository()
 
@@ -96,7 +93,6 @@ fun Application.module(appConfig: Dotenv) {
         }
 
         healthRoutes(dockerService)
-        appRoutes(appRepository)
         projectRoutes(projectService)
         functionRoutes(functionService, projectService)
     }
