@@ -15,6 +15,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { functionsApi } from '../api/functions';
 import { FunctionNode } from './FunctionNode';
+import { ResultNode } from './ResultNode';
 import { SourceModal } from './SourceModal';
 import type { Function as FunctionType } from '../types';
 
@@ -24,6 +25,7 @@ interface FunctionGraphProps {
 
 const nodeTypes = {
   functionNode: FunctionNode,
+  resultNode: ResultNode,
 };
 
 export function FunctionGraph({ projectId }: FunctionGraphProps) {
@@ -113,6 +115,7 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
 
   const handleRun = useCallback((functionId: string) => {
     executeMutation.mutate(functionId);
@@ -130,28 +133,87 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
     getFunctionSourceMutation.mutate(functionId);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update nodes when functions change
+  // Update nodes and edges when functions change
   useEffect(() => {
-    const newNodes: Node[] = functions.map((func: FunctionType, index: number) => ({
-      id: func.id,
-      type: 'functionNode',
-      position: { x: 100 + (index % 3) * 300, y: 100 + Math.floor(index / 3) * 200 },
-      data: {
-        function: func,
-        onRun: handleRun,
-        onDelete: handleDelete,
-        onGetSource: handleGetSource,
-        onGetFunctionSource: handleGetFunctionSource,
-        executionResult: executionResults[func.id] || null,
-        executionError: executionErrors[func.id] || null,
-      },
-    }));
+    const newNodes: Node[] = [];
+    const newEdges: Edge[] = [];
+
+    functions.forEach((func: FunctionType, index: number) => {
+      const functionNodeId = func.id;
+      const resultNodeId = `${func.id}-result`;
+      const baseX = 100 + (index % 3) * 450;
+      const baseY = 100 + Math.floor(index / 3) * 200;
+
+      // Create function node
+      newNodes.push({
+        id: functionNodeId,
+        type: 'functionNode',
+        position: { x: baseX, y: baseY },
+        data: {
+          function: func,
+          onRun: handleRun,
+          onDelete: handleDelete,
+          onGetSource: handleGetSource,
+          onGetFunctionSource: handleGetFunctionSource,
+        },
+      });
+
+      // Create result node (positioned to the right of function)
+      newNodes.push({
+        id: resultNodeId,
+        type: 'resultNode',
+        position: { x: baseX + 280, y: baseY },
+        data: {
+          result: executionResults[func.id] || null,
+          error: executionErrors[func.id] || null,
+        },
+        draggable: true,
+      });
+
+      // Create edge from function to result
+      newEdges.push({
+        id: `${functionNodeId}-to-${resultNodeId}`,
+        source: functionNodeId,
+        target: resultNodeId,
+        sourceHandle: 'result',
+        type: 'straight',
+        animated: false,
+        style: { stroke: '#94a3b8', strokeWidth: 2 },
+      });
+    });
+
     setNodes(newNodes);
-  }, [functions, setNodes, handleRun, handleDelete, handleGetSource, handleGetFunctionSource, executionResults, executionErrors]);
+    setEdges(newEdges);
+  }, [functions, setNodes, setEdges, handleRun, handleDelete, handleGetSource, handleGetFunctionSource, executionResults, executionErrors]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
+  );
+
+  // Handle node drag to move result nodes with function nodes
+  const onNodeDragStop = useCallback(
+    (_event: any, node: Node) => {
+      // If a function node was dragged, update its result node position
+      if (node.type === 'functionNode') {
+        const resultNodeId = `${node.id}-result`;
+        setNodes((nds) =>
+          nds.map((n) => {
+            if (n.id === resultNodeId) {
+              return {
+                ...n,
+                position: {
+                  x: node.position.x + 280,
+                  y: node.position.y,
+                },
+              };
+            }
+            return n;
+          })
+        );
+      }
+    },
+    [setNodes]
   );
 
   const handleCreate = () => {
@@ -248,6 +310,7 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onNodeDragStop={onNodeDragStop}
             nodeTypes={nodeTypes}
             fitView
           >

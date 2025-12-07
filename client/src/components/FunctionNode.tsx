@@ -8,8 +8,6 @@ interface FunctionNodeData {
   onDelete: (functionId: string) => void;
   onGetSource: (functionId: string) => void;
   onGetFunctionSource: (functionId: string) => void;
-  executionResult?: string | null;
-  executionError?: string | null;
 }
 
 interface FunctionNodeProps {
@@ -72,18 +70,6 @@ export function FunctionNode({ data }: FunctionNodeProps) {
         {func.sourceCode}
       </pre>
 
-      {data.executionResult && (
-        <div className="text-xs bg-green-50 text-green-800 rounded px-2 py-1 mb-2 font-mono">
-          Result: {data.executionResult}
-        </div>
-      )}
-
-      {data.executionError && (
-        <div className="text-xs bg-red-50 text-red-800 rounded px-2 py-1 mb-2 font-mono">
-          Error: {data.executionError}
-        </div>
-      )}
-
       <div className="flex gap-2 items-center border-t border-current/20 pt-2">
         <button
           onClick={handleRun}
@@ -134,6 +120,7 @@ export function FunctionNode({ data }: FunctionNodeProps) {
         </div>
       </div>
 
+      <Handle type="source" position={Position.Right} id="result" />
       <Handle type="source" position={Position.Bottom} />
     </div>
   );
