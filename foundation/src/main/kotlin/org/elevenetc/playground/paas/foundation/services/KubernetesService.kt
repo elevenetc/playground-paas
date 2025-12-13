@@ -330,6 +330,36 @@ class KubernetesService {
     }
 
     /**
+     * Checks if a deployment exists in the cluster.
+     */
+    suspend fun deploymentExists(projectName: String, functionName: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val resourceName = generateKubResourceName(projectName, functionName)
+                appsApi.readNamespacedDeployment(resourceName, namespace).execute()
+                true
+            } catch (e: Exception) {
+                false
+            }
+        }
+    }
+
+    /**
+     * Checks if a service exists in the cluster.
+     */
+    suspend fun serviceExists(projectName: String, functionName: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val resourceName = generateKubResourceName(projectName, functionName)
+                coreApi.readNamespacedService(resourceName, namespace).execute()
+                true
+            } catch (e: Exception) {
+                false
+            }
+        }
+    }
+
+    /**
      * Gets the failure reason from a deployment's status.
      * Checks pod conditions and events to determine why deployment failed.
      */

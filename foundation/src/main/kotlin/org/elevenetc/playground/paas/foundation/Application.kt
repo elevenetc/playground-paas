@@ -53,6 +53,14 @@ fun Application.module(appConfig: Dotenv) {
     val kubernetesService = KubernetesService()
     val projectService = ProjectService(projectRepository)
     val functionService = FunctionService(functionRepository, dockerBuildService, kubernetesService, projectService)
+    val reconciliationService = KubernetesReconciliationService(
+        functionRepository,
+        kubernetesService,
+        projectService
+    )
+
+    // Start Kubernetes reconciliation on startup
+    reconciliationService.reconcileOnStartup()
 
     // Configure plugins
     install(CORS) {
