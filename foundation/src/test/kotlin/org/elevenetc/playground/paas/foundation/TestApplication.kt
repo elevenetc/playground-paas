@@ -26,6 +26,8 @@ import org.elevenetc.playground.paas.foundation.services.DockerBuildService
 import org.elevenetc.playground.paas.foundation.services.FunctionService
 import org.elevenetc.playground.paas.foundation.services.KubernetesService
 import org.elevenetc.playground.paas.foundation.services.ProjectService
+import org.elevenetc.playground.paas.foundation.tools.Docker
+import org.elevenetc.playground.paas.foundation.tools.Kind
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -52,7 +54,7 @@ fun Application.testModule(resetDatabase: Boolean = true) {
     val functionRepository = FunctionRepository(functionStatusHistoryRepository)
 
     // Initialize services
-    val dockerBuildService = DockerBuildService()
+    val dockerBuildService = DockerBuildService(Kind(), Docker())
     val kubernetesService = KubernetesService()
     val projectService = ProjectService(projectRepository)
     val functionService = FunctionService(functionRepository, dockerBuildService, kubernetesService, projectService)

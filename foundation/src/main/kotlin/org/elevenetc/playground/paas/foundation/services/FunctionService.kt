@@ -27,7 +27,7 @@ class FunctionService(
     private val scope = CoroutineScope(Dispatchers.IO)
     private val httpClient = HttpClient(CIO) {
         engine {
-            requestTimeout = 5000 // 5 second timeout
+            requestTimeout = 5000
         }
         expectSuccess = false // Don't throw on non-2xx status codes
     }

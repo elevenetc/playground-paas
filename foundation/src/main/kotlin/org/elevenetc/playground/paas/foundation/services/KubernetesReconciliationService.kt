@@ -5,7 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.elevenetc.playground.paas.foundation.models.FunctionStatus
 import org.elevenetc.playground.paas.foundation.repositories.FunctionRepository
-import org.elevenetc.playground.paas.foundation.utils.loadImageIntoKind
+import org.elevenetc.playground.paas.foundation.tools.Kind
 import org.slf4j.LoggerFactory
 
 /**
@@ -16,7 +16,8 @@ import org.slf4j.LoggerFactory
 class KubernetesReconciliationService(
     private val functionRepository: FunctionRepository,
     private val kubernetesService: KubernetesService,
-    private val projectService: ProjectService
+    private val projectService: ProjectService,
+    private val kind: Kind
 ) {
     private val logger = LoggerFactory.getLogger(KubernetesReconciliationService::class.java)
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -112,7 +113,7 @@ class KubernetesReconciliationService(
 
                 // First, ensure the image is loaded into Kind
                 logger.info("Loading image $imageName into Kind cluster...")
-                val imageLoaded = loadImageIntoKind(imageName)
+                val imageLoaded = kind.loadImageIntoKind(imageName)
 
                 if (!imageLoaded) {
                     logger.error("Failed to load image $imageName into Kind cluster")

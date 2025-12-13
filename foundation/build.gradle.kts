@@ -56,7 +56,9 @@ dependencies {
     // Testing
     testImplementation(kotlin("test"))
     testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
-    testImplementation("com.h2database:h2:2.2.224") // In-memory database for tests
+    testImplementation("com.h2database:h2:2.2.224")
+    testImplementation("io.mockk:mockk:1.13.13")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 }
 
 application {
@@ -65,6 +67,7 @@ application {
 
 tasks.test {
     useJUnitPlatform()
+    workingDir = project.rootDir
 }
 
 kotlin {

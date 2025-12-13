@@ -21,6 +21,8 @@ import org.elevenetc.playground.paas.foundation.routes.functionRoutes
 import org.elevenetc.playground.paas.foundation.routes.healthRoutes
 import org.elevenetc.playground.paas.foundation.routes.projectRoutes
 import org.elevenetc.playground.paas.foundation.services.*
+import org.elevenetc.playground.paas.foundation.tools.Docker
+import org.elevenetc.playground.paas.foundation.tools.Kind
 
 fun main() {
     val appConfig = dotenv {
@@ -49,14 +51,16 @@ fun Application.module(appConfig: Dotenv) {
 
     // Initialize services
     val dockerService = DockerService(appConfig)
-    val dockerBuildService = DockerBuildService()
+    val kind = Kind()
+    val dockerBuildService = DockerBuildService(kind, Docker())
     val kubernetesService = KubernetesService()
     val projectService = ProjectService(projectRepository)
     val functionService = FunctionService(functionRepository, dockerBuildService, kubernetesService, projectService)
     val reconciliationService = KubernetesReconciliationService(
         functionRepository,
         kubernetesService,
-        projectService
+        projectService,
+        kind
     )
 
     // Start Kubernetes reconciliation on startup
