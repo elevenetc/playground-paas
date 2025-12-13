@@ -44,12 +44,17 @@ data class FunctionParameter(
 enum class FunctionStatus {
     PENDING,
     COMPILING,
-    RUN_FAILED,
-    BUILD_FAILED,
+    BUILD_FAILED,                   // Docker image build failed
+    DEPLOYMENT_FAILED,              // Kubernetes deployment creation failed
+    SERVICE_FAILED,                 // Kubernetes service creation failed
     READY,
+    RUN_FAILED,                     // Runtime execution failed
     STOPPED,
     STOPPING,
-    DELETING
+    DELETING,
+    DEPLOYMENT_DELETION_FAILED,     // Kubernetes deployment deletion failed
+    SERVICE_DELETION_FAILED,        // Kubernetes service deletion failed
+    DELETION_FAILED                 // Both deployment and service deletion failed
 }
 
 // Request DTOs

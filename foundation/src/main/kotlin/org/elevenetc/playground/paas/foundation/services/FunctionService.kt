@@ -14,14 +14,14 @@ import org.elevenetc.playground.paas.foundation.compiler.extractReturnType
 import org.elevenetc.playground.paas.foundation.models.CreateFunctionRequest
 import org.elevenetc.playground.paas.foundation.models.Function
 import org.elevenetc.playground.paas.foundation.models.FunctionStatus
-import org.elevenetc.playground.paas.foundation.models.FunctionStatus.BUILD_FAILED
-import org.elevenetc.playground.paas.foundation.models.FunctionStatus.RUN_FAILED
+import org.elevenetc.playground.paas.foundation.models.FunctionStatus.*
 import org.elevenetc.playground.paas.foundation.models.UpdateFunctionRequest
 import org.elevenetc.playground.paas.foundation.repositories.FunctionRepository
 
 class FunctionService(
     private val functionRepository: FunctionRepository,
     private val dockerBuildService: DockerBuildService,
+    private val kubernetesService: KubernetesService,
     private val projectService: ProjectService
 ) {
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -71,26 +71,41 @@ class FunctionService(
                 sourceCode = function.sourceCode
             )) {
                 is BuildResult.Success -> {
-                    // Run container
-                    when (val containerResult = dockerBuildService.runContainer(
+                    // Create Kubernetes Deployment
+                    when (val deploymentResult = kubernetesService.createDeployment(
                         imageName = buildResult.imageName,
                         projectName = projectName,
-                        functionName = function.name
+                        functionName = function.name,
+                        functionId = function.id
                     )) {
-                        is ContainerResult.Success -> {
-                            // Update function with container info
-                            functionRepository.updateContainerInfo(
-                                functionId = function.id,
-                                containerName = containerResult.containerName,
-                                containerId = containerResult.containerId,
-                                port = containerResult.port,
-                                imageTag = buildResult.imageName,
-                                status = FunctionStatus.READY
-                            )
+                        is K8sDeploymentResult.Success -> {
+                            // Create Kubernetes Service
+                            when (val serviceResult = kubernetesService.createService(
+                                projectName = projectName,
+                                functionName = function.name,
+                                functionId = function.id
+                            )) {
+                                is K8sServiceResult.Success -> {
+
+                                    // Update function with Kubernetes info
+                                    functionRepository.updateContainerInfo(
+                                        functionId = function.id,
+                                        containerName = deploymentResult.deploymentName, // Store deployment name
+                                        containerId = serviceResult.serviceName, // Store service name in containerId field
+                                        port = serviceResult.nodePort, // NodePort for external access
+                                        imageTag = buildResult.imageName,
+                                        status = FunctionStatus.READY
+                                    )
+                                }
+
+                                is K8sServiceResult.Failure -> {
+                                    functionRepository.updateStatus(function.id, SERVICE_FAILED, serviceResult.error)
+                                }
+                            }
                         }
 
-                        is ContainerResult.Failure -> {
-                            functionRepository.updateStatus(function.id, RUN_FAILED, containerResult.error)
+                        is K8sDeploymentResult.Failure -> {
+                            functionRepository.updateStatus(function.id, DEPLOYMENT_FAILED, deploymentResult.error)
                         }
                     }
                 }
@@ -139,42 +154,76 @@ class FunctionService(
         // Get function info before deleting
         val function = functionRepository.findById(id) ?: return false
 
-        // If function has a container, set state to DELETING and clean it up
+        // If function has a deployment (containerName stores deployment name), clean it up
         if (function.containerName != null) {
             // Set status to DELETING
             functionRepository.updateStatus(id, FunctionStatus.DELETING)
 
-            // Stop and remove container asynchronously
+            // Get project info for resource naming
+            val project = projectService.getProjectById(function.projectId)
+            val projectName = project?.name?.lowercase()?.replace(Regex("[^a-z0-9-]"), "-") ?: "unknown"
+
+            // Delete Kubernetes resources asynchronously
             scope.launch {
-                cleanupAndDeleteFunction(id, function.containerName)
+                cleanupAndDeleteFunction(id, projectName, function.name)
             }
 
             // Return true - deletion is in progress
             return true
         }
 
-        // No container, safe to delete immediately
+        // No deployment, safe to delete immediately
         return functionRepository.delete(id)
     }
 
-    private suspend fun cleanupAndDeleteFunction(functionId: String, containerName: String) {
+    private suspend fun cleanupAndDeleteFunction(functionId: String, projectName: String, functionName: String) {
         try {
-            // Attempt to stop and remove container
-            when (val result = dockerBuildService.stopAndRemoveContainer(containerName)) {
-                is ContainerDeletionResult.Success -> {
+            // Attempt to delete Kubernetes deployment and service
+            when (val result = kubernetesService.deleteDeploymentAndService(projectName, functionName)) {
+                is K8sDeletionResult.Success -> {
                     // Successfully cleaned up, now delete from DB
                     functionRepository.delete(functionId)
                 }
 
-                is ContainerDeletionResult.Failure -> {
-                    // Failed to cleanup container, update status with error
-                    // Keep the function record so user can retry
-                    functionRepository.updateStatus(functionId, RUN_FAILED, "Container cleanup failed: ${result.error}")
+                is K8sDeletionResult.DeploymentFailed -> {
+                    // Deployment deletion failed, but service was deleted successfully
+                    functionRepository.updateStatus(
+                        functionId,
+                        DEPLOYMENT_DELETION_FAILED,
+                        "Failed to delete deployment: ${result.error}"
+                    )
+                }
+
+                is K8sDeletionResult.ServiceFailed -> {
+                    // Service deletion failed, but deployment was deleted successfully
+                    functionRepository.updateStatus(
+                        functionId,
+                        SERVICE_DELETION_FAILED,
+                        "Failed to delete service: ${result.error}"
+                    )
+                }
+
+                is K8sDeletionResult.BothFailed -> {
+                    // Both deployment and service deletion failed
+                    functionRepository.updateStatus(
+                        functionId,
+                        DELETION_FAILED,
+                        "Failed to delete deployment: ${result.deploymentError}; service: ${result.serviceError}"
+                    )
+                }
+
+                is K8sDeletionResult.UnexpectedError -> {
+                    // Unexpected error during deletion
+                    functionRepository.updateStatus(
+                        functionId,
+                        DELETION_FAILED,
+                        "Unexpected deletion error: ${result.error}"
+                    )
                 }
             }
         } catch (e: Exception) {
-            // Unexpected error during cleanup
-            functionRepository.updateStatus(functionId, RUN_FAILED, "Unexpected cleanup error: ${e.message}")
+            // Unexpected exception not caught by deleteDeploymentAndService
+            functionRepository.updateStatus(functionId, DELETION_FAILED, "Cleanup exception: ${e.message}")
         }
     }
 
@@ -188,34 +237,48 @@ class FunctionService(
             return FunctionExecutionResult.NotReady("Function is ${function.status}, not READY")
         }
 
-        // Check if we have port info
-        val port = function.port
-            ?: return FunctionExecutionResult.Error("Function container port not available")
+        // Get service name (stored in containerId field)
+        val serviceName = function.containerId
+            ?: return FunctionExecutionResult.Error("Function service name not available")
 
-        return try {
-            // Make HTTP POST request to container's /execute endpoint
-            val response: HttpResponse = httpClient.post("http://localhost:$port/execute") {
-                headers {
-                    append(HttpHeaders.Accept, "application/json")
-                    append(HttpHeaders.ContentType, "application/json")
+        // Create port-forward to the service
+        val portForwardResult = kubernetesService.createPortForward(serviceName)
+
+        return when (portForwardResult) {
+            is PortForwardResult.Success -> {
+                try {
+                    // Make HTTP POST request via port-forward
+                    val response: HttpResponse = httpClient.post("${portForwardResult.url}/execute") {
+                        headers {
+                            append(HttpHeaders.Accept, "application/json")
+                            append(HttpHeaders.ContentType, "application/json")
+                        }
+                    }
+
+                    // Check status code
+                    if (!response.status.isSuccess()) {
+                        return FunctionExecutionResult.Error("Execution failed with status ${response.status.value}: ${response.bodyAsText()}")
+                    }
+
+                    // Extract result from response body
+                    val responseBody = response.bodyAsText()
+                    // Parse JSON to get the result field
+                    val resultMatch = Regex(""""result"\s*:\s*"([^"]*)"""").find(responseBody)
+                    val result = resultMatch?.groupValues?.get(1)
+                        ?: return FunctionExecutionResult.Error("Failed to parse result from response: $responseBody")
+
+                    FunctionExecutionResult.Success(result)
+                } catch (e: Exception) {
+                    FunctionExecutionResult.Error("Execution failed: ${e.message}")
+                } finally {
+                    // Clean up port-forward process
+                    portForwardResult.process.destroy()
                 }
             }
 
-            // Check status code
-            if (!response.status.isSuccess()) {
-                return FunctionExecutionResult.Error("Execution failed with status ${response.status.value}: ${response.bodyAsText()}")
+            is PortForwardResult.Failure -> {
+                FunctionExecutionResult.Error("Failed to connect to service: ${portForwardResult.error}")
             }
-
-            // Extract result from response body
-            val responseBody = response.bodyAsText()
-            // Parse JSON to get the result field
-            val resultMatch = Regex(""""result"\s*:\s*"([^"]*)"""").find(responseBody)
-            val result = resultMatch?.groupValues?.get(1)
-                ?: return FunctionExecutionResult.Error("Failed to parse result from response: $responseBody")
-
-            FunctionExecutionResult.Success(result)
-        } catch (e: Exception) {
-            FunctionExecutionResult.Error("Execution failed: ${e.message}")
         }
     }
 

@@ -24,6 +24,7 @@ import org.elevenetc.playground.paas.foundation.routes.functionRoutes
 import org.elevenetc.playground.paas.foundation.routes.projectRoutes
 import org.elevenetc.playground.paas.foundation.services.DockerBuildService
 import org.elevenetc.playground.paas.foundation.services.FunctionService
+import org.elevenetc.playground.paas.foundation.services.KubernetesService
 import org.elevenetc.playground.paas.foundation.services.ProjectService
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -52,8 +53,9 @@ fun Application.testModule(resetDatabase: Boolean = true) {
 
     // Initialize services
     val dockerBuildService = DockerBuildService()
+    val kubernetesService = KubernetesService()
     val projectService = ProjectService(projectRepository)
-    val functionService = FunctionService(functionRepository, dockerBuildService, projectService)
+    val functionService = FunctionService(functionRepository, dockerBuildService, kubernetesService, projectService)
 
     // Configure plugins
     install(ContentNegotiation) {

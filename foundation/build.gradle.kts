@@ -37,6 +37,9 @@ dependencies {
     implementation("com.github.docker-java:docker-java-core:3.4.1")
     implementation("com.github.docker-java:docker-java-transport-httpclient5:3.4.1")
 
+    // Kubernetes Client
+    implementation("io.kubernetes:client-java:21.0.1")
+
     // Logging
     implementation("ch.qos.logback:logback-classic:1.5.12")
 

@@ -3,6 +3,7 @@ package org.elevenetc.playground.paas.foundation.services
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.elevenetc.playground.paas.foundation.utils.copyDirectory
+import org.elevenetc.playground.paas.foundation.utils.loadImageIntoKind
 import java.io.File
 
 class DockerBuildService {
@@ -77,7 +78,12 @@ class DockerBuildService {
                 val exitCode = process.waitFor()
 
                 if (exitCode == 0) {
-                    BuildResult.Success(imageName, output)
+                    val loaded = loadImageIntoKind(imageName)
+                    if (loaded) {
+                        BuildResult.Success(imageName, output)
+                    } else {
+                        BuildResult.Failure("Docker build succeeded but failed to load image into Kind cluster")
+                    }
                 } else {
                     BuildResult.Failure("Docker build failed: $output")
                 }
