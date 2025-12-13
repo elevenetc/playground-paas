@@ -1,5 +1,15 @@
 version: '3.8'
 
+# NOTE: The Kind Kubernetes cluster (paas-cluster-control-plane) runs separately
+# and will appear outside this project in Docker Desktop. This is expected.
+#
+# To start the complete environment:
+#   ./scripts/dev-start.sh
+#
+# Or manually:
+#   ./scripts/ensure-kind.sh
+#   docker-compose up -d
+
 services:
   postgres:
     image: postgres:16-alpine

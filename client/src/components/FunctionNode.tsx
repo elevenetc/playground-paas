@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Handle, Position } from '@xyflow/react';
-import type { Function as FunctionType, FunctionStatus } from '../types';
+import {useState} from 'react';
+import {Handle, Position} from '@xyflow/react';
+import type {Function as FunctionType, FunctionStatus} from '../types';
 
 interface FunctionNodeData {
   function: FunctionType;
@@ -8,6 +8,7 @@ interface FunctionNodeData {
   onDelete: (functionId: string) => void;
   onGetSource: (functionId: string) => void;
   onGetFunctionSource: (functionId: string) => void;
+  onGetState: (functionId: string) => void;
 }
 
 interface FunctionNodeProps {
@@ -17,11 +18,17 @@ interface FunctionNodeProps {
 const STATUS_COLORS: Record<FunctionStatus, string> = {
   PENDING: 'bg-yellow-100 border-yellow-500 text-yellow-800',
   COMPILING: 'bg-blue-100 border-blue-500 text-blue-800',
+  BUILD_FAILED: 'bg-red-100 border-red-500 text-red-800',
+  DEPLOYMENT_FAILED: 'bg-red-100 border-red-500 text-red-800',
+  SERVICE_FAILED: 'bg-red-100 border-red-500 text-red-800',
   READY: 'bg-green-100 border-green-500 text-green-800',
-  FAILED: 'bg-red-100 border-red-500 text-red-800',
+  RUN_FAILED: 'bg-red-100 border-red-500 text-red-800',
   STOPPED: 'bg-gray-100 border-gray-500 text-gray-800',
   STOPPING: 'bg-orange-100 border-orange-500 text-orange-800',
   DELETING: 'bg-purple-100 border-purple-500 text-purple-800',
+  DEPLOYMENT_DELETION_FAILED: 'bg-red-100 border-red-500 text-red-800',
+  SERVICE_DELETION_FAILED: 'bg-red-100 border-red-500 text-red-800',
+  DELETION_FAILED: 'bg-red-100 border-red-500 text-red-800',
 };
 
 export function FunctionNode({ data }: FunctionNodeProps) {
@@ -50,6 +57,12 @@ export function FunctionNode({ data }: FunctionNodeProps) {
     e.stopPropagation();
     setMenuOpen(false);
     data.onGetFunctionSource(func.id);
+  };
+
+  const handleGetState = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    data.onGetState(func.id);
   };
 
   const toggleMenu = (e: React.MouseEvent) => {
@@ -96,6 +109,12 @@ export function FunctionNode({ data }: FunctionNodeProps) {
                 onClick={() => setMenuOpen(false)}
               />
               <div className="absolute left-0 top-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-20 min-w-[180px]">
+                <button
+                    onClick={handleGetState}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100 transition-colors text-sm"
+                >
+                  Get state
+                </button>
                 <button
                   onClick={handleGetSource}
                   className="w-full px-4 py-2 text-left hover:bg-gray-100 transition-colors text-sm"

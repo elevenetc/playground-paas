@@ -1,23 +1,24 @@
-import { useCallback, useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {useCallback, useEffect, useState} from 'react';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {
-  ReactFlow,
-  Controls,
-  Background,
-  useNodesState,
-  useEdgesState,
   addEdge,
+  Background,
   BackgroundVariant,
-  type Node,
-  type Edge,
   type Connection,
+  Controls,
+  type Edge,
+  type Node,
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { functionsApi } from '../api/functions';
-import { FunctionNode } from './FunctionNode';
-import { ResultNode } from './ResultNode';
-import { SourceModal } from './SourceModal';
-import type { Function as FunctionType } from '../types';
+import {functionsApi} from '../api/functions';
+import {FunctionNode} from './FunctionNode';
+import {ResultNode} from './ResultNode';
+import {SourceModal} from './SourceModal';
+import {TextModal} from './TextModal';
+import type {Function as FunctionType} from '../types';
 
 interface FunctionGraphProps {
   projectId: string;
@@ -35,6 +36,9 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
   const [sourceModalOpen, setSourceModalOpen] = useState(false);
   const [debugSource, setDebugSource] = useState<string | null>(null);
   const [sourceModalTitle, setSourceModalTitle] = useState('Generated Source');
+  const [stateModalOpen, setStateModalOpen] = useState(false);
+  const [stateContent, setStateContent] = useState<string | null>(null);
+  const [stateModalTitle, setStateModalTitle] = useState('Function State');
   const [executionResults, setExecutionResults] = useState<Record<string, string>>({});
   const [executionErrors, setExecutionErrors] = useState<Record<string, string>>({});
   const queryClient = useQueryClient();
@@ -133,6 +137,16 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
     getFunctionSourceMutation.mutate(functionId);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleGetState = useCallback((functionId: string) => {
+    const func = functions.find((f: FunctionType) => f.id === functionId);
+    if (func) {
+      const statusInfo = `Status: ${func.status}${func.errorMessage ? '\n\nError:\n' + func.errorMessage : ''}`;
+      setStateContent(statusInfo);
+      setStateModalTitle(`Function State: ${func.name}`);
+      setStateModalOpen(true);
+    }
+  }, [functions]);
+
   // Update nodes and edges when functions change
   useEffect(() => {
     const newNodes: Node[] = [];
@@ -155,6 +169,7 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
           onDelete: handleDelete,
           onGetSource: handleGetSource,
           onGetFunctionSource: handleGetFunctionSource,
+          onGetState: handleGetState,
         },
       });
 
@@ -184,7 +199,7 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
 
     setNodes(newNodes);
     setEdges(newEdges);
-  }, [functions, setNodes, setEdges, handleRun, handleDelete, handleGetSource, handleGetFunctionSource, executionResults, executionErrors]);
+  }, [functions, setNodes, setEdges, handleRun, handleDelete, handleGetSource, handleGetFunctionSource, handleGetState, executionResults, executionErrors]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -244,6 +259,16 @@ export function FunctionGraph({ projectId }: FunctionGraphProps) {
         source={debugSource}
         loading={getSourceMutation.isPending || getFunctionSourceMutation.isPending}
         title={sourceModalTitle}
+      />
+
+      <TextModal
+          isOpen={stateModalOpen}
+          onClose={() => {
+            setStateModalOpen(false);
+            setStateContent(null);
+          }}
+          content={stateContent}
+          title={stateModalTitle}
       />
 
       <div className="h-full flex flex-col bg-white">
