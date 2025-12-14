@@ -8,15 +8,11 @@ import io.ktor.http.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.elevenetc.playground.paas.foundation.compiler.extractFunctionName
-import org.elevenetc.playground.paas.foundation.compiler.extractParameters
-import org.elevenetc.playground.paas.foundation.compiler.extractReturnType
-import org.elevenetc.playground.paas.foundation.models.CreateFunctionRequest
+import org.elevenetc.playground.paas.foundation.models.*
 import org.elevenetc.playground.paas.foundation.models.Function
-import org.elevenetc.playground.paas.foundation.models.FunctionStatus
 import org.elevenetc.playground.paas.foundation.models.FunctionStatus.*
-import org.elevenetc.playground.paas.foundation.models.UpdateFunctionRequest
 import org.elevenetc.playground.paas.foundation.repositories.FunctionRepository
+import org.elevenetc.playground.paas.metadata.readFunctionMetadata
 
 class FunctionService(
     private val functionRepository: FunctionRepository,
@@ -33,17 +29,15 @@ class FunctionService(
     }
 
     fun createFunction(projectId: String, request: CreateFunctionRequest): Function {
-        // Extract name, parameters, and return type from source code
-        val name = request.name ?: extractFunctionName(request.sourceCode)
-        val parameters = extractParameters(request.sourceCode)
-        val returnType = extractReturnType(request.sourceCode)
+
+        val functionData = readFunctionMetadata(request.sourceCode).first()
 
         val function = functionRepository.create(
             projectId = projectId,
-            name = name,
+            name = functionData.name,
             sourceCode = request.sourceCode,
-            returnType = returnType,
-            parameters = parameters
+            returnType = functionData.returnType.className,
+            parameters = functionData.parameters.map { FunctionParameter(it.name, it.type.className) }
         )
 
         // Trigger Docker build asynchronously
@@ -132,21 +126,14 @@ class FunctionService(
     }
 
     fun updateFunction(id: String, request: UpdateFunctionRequest): Function? {
-        // If source code is being updated, extract parameters and return type
-        val parameters = if (request.sourceCode != null) {
-            extractParameters(request.sourceCode)
-        } else null
-
-        val returnType = if (request.sourceCode != null) {
-            extractReturnType(request.sourceCode)
-        } else null
+        val functionData = readFunctionMetadata(request.sourceCode).first()
 
         return functionRepository.update(
             id = id,
-            name = request.name,
+            name = functionData.name,
             sourceCode = request.sourceCode,
-            returnType = returnType,
-            parameters = parameters
+            returnType = functionData.returnType.className,
+            parameters = functionData.parameters.map { FunctionParameter(it.name, it.type.className) }
         )
     }
 

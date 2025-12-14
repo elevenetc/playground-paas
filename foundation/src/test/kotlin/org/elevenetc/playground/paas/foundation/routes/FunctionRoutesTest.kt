@@ -32,7 +32,6 @@ class FunctionRoutesTest {
         val response = client.post("/api/projects/${project.id}/functions") {
             jsonBody(
                 CreateFunctionRequest(
-                    name = "add",
                     sourceCode = "fun add(a: Int, b: Int): Int = a + b"
                 )
             )
@@ -72,7 +71,6 @@ class FunctionRoutesTest {
         client.post("/api/projects/${project.id}/functions") {
             jsonBody(
                 CreateFunctionRequest(
-                    name = "add",
                     sourceCode = "fun add(a: Int, b: Int): Int = a + b"
                 )
             )
@@ -81,7 +79,6 @@ class FunctionRoutesTest {
         client.post("/api/projects/${project.id}/functions") {
             jsonBody(
                 CreateFunctionRequest(
-                    name = "multiply",
                     sourceCode = "fun multiply(a: Int, b: Int): Int = a * b"
                 )
             )
@@ -112,7 +109,6 @@ class FunctionRoutesTest {
         client.post("/api/projects/${project1.id}/functions") {
             jsonBody(
                 CreateFunctionRequest(
-                    name = "func1",
                     sourceCode = "fun func1(): Int = 1"
                 )
             )
@@ -122,7 +118,6 @@ class FunctionRoutesTest {
         client.post("/api/projects/${project2.id}/functions") {
             jsonBody(
                 CreateFunctionRequest(
-                    name = "func2",
                     sourceCode = "fun func2(): Int = 2"
                 )
             )
@@ -147,7 +142,6 @@ class FunctionRoutesTest {
         val createResponse = client.post("/api/projects/${project.id}/functions") {
             jsonBody(
                 CreateFunctionRequest(
-                    name = "add",
                     sourceCode = "fun add(a: Int, b: Int): Int = a + b"
                 )
             )
@@ -172,7 +166,6 @@ class FunctionRoutesTest {
         val createResponse = client.post("/api/projects/${project.id}/functions") {
             jsonBody(
                 CreateFunctionRequest(
-                    name = "add",
                     sourceCode = "fun add(a: Int, b: Int): Int = a + b"
                 )
             )
@@ -207,7 +200,6 @@ class FunctionRoutesTest {
         val createResponse = client.post("/api/projects/${project.id}/functions") {
             jsonBody(
                 CreateFunctionRequest(
-                    name = "add",
                     sourceCode = "fun add(a: Int, b: Int): Int = a + b"
                 )
             )
@@ -218,7 +210,6 @@ class FunctionRoutesTest {
         val response = client.put("/api/projects/${project.id}/functions/${createdFunction.id}") {
             jsonBody(
                 UpdateFunctionRequest(
-                    name = "addOptimized",
                     sourceCode = "fun addOptimized(x: Int, y: Int): Int = x + y"
                 )
             )
@@ -233,39 +224,12 @@ class FunctionRoutesTest {
     }
 
     @Test
-    fun `test update function with partial data`() = testApp {
-
-        val project = createTestProject()
-
-        // Create a function
-        val createResponse = client.post("/api/projects/${project.id}/functions") {
-            jsonBody(
-                CreateFunctionRequest(
-                    name = "add",
-                    sourceCode = "fun add(a: Int, b: Int): Int = a + b"
-                )
-            )
-        }
-        val createdFunction = json.decodeFromString<FunctionModel>(createResponse.bodyAsText())
-
-        // Update only name
-        val response = client.put("/api/projects/${project.id}/functions/${createdFunction.id}") {
-            jsonBody(UpdateFunctionRequest(name = "addNumbers"))
-        }
-
-        assertEquals(HttpStatusCode.OK, response.status)
-        val updatedFunction = json.decodeFromString<FunctionModel>(response.bodyAsText())
-        assertEquals("addNumbers", updatedFunction.name)
-        assertEquals(createdFunction.sourceCode, updatedFunction.sourceCode) // Source code unchanged
-    }
-
-    @Test
     fun `test update non-existent function returns not found`() = testApp {
 
         val project = createTestProject()
 
         val response = client.put("/api/projects/${project.id}/functions/non-existent-id") {
-            jsonBody(UpdateFunctionRequest(name = "updated"))
+            jsonBody(UpdateFunctionRequest(sourceCode = "fun foo() = Unit"))
         }
 
         assertEquals(HttpStatusCode.NotFound, response.status)
@@ -280,7 +244,6 @@ class FunctionRoutesTest {
         val createResponse = client.post("/api/projects/${project.id}/functions") {
             jsonBody(
                 CreateFunctionRequest(
-                    name = "toDelete",
                     sourceCode = "fun toDelete(): Unit = Unit"
                 )
             )

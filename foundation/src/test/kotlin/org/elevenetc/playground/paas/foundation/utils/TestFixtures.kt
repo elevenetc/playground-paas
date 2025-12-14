@@ -78,10 +78,8 @@ object TestFixtures {
      * Create a CreateFunctionRequest.
      */
     fun createFunctionRequest(
-        name: String? = null,
         sourceCode: String = "fun testFunction(): String = \"Hello, World!\""
     ) = CreateFunctionRequest(
-        name = name,
         sourceCode = sourceCode
     )
 }

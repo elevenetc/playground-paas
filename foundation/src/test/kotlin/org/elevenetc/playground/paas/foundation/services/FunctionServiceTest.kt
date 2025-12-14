@@ -46,12 +46,6 @@ class FunctionServiceTest {
     private lateinit var projectService: ProjectService
     private lateinit var functionService: FunctionService
 
-    // Helper: extractParameters is currently hardcoded to return these parameters
-    private val hardcodedParameters = listOf(
-        TestFixtures.createParameter(name = "a", type = "Int"),
-        TestFixtures.createParameter(name = "b", type = "Int")
-    )
-
     @BeforeTest
     fun setup() {
         // Initialize H2 in-memory database
@@ -164,7 +158,7 @@ class FunctionServiceTest {
         assertEquals(project.id, result.projectId)
         assertEquals(request.sourceCode, result.sourceCode)
         assertEquals("String", result.returnType)
-        assertEquals(hardcodedParameters, result.parameters)
+        assertEquals(emptyList(), result.parameters) // hello() has no parameters
 
         // Verify function exists in database
         val fromDb = functionRepository.findById(result.id)
@@ -178,7 +172,6 @@ class FunctionServiceTest {
         // Given
         val project = createTestProject()
         val request = TestFixtures.createFunctionRequest(
-            name = null, // Name not provided
             sourceCode = "fun calculateSum(a: Int, b: Int): Int = a + b"
         )
 
@@ -193,28 +186,6 @@ class FunctionServiceTest {
         val fromDb = functionRepository.findById(result.id)
         assertNotNull(fromDb)
         assertEquals("calculateSum", fromDb.name)
-    }
-
-    @Test
-    fun `createFunction should use provided name when specified`() {
-        // Given
-        val project = createTestProject()
-        val request = TestFixtures.createFunctionRequest(
-            name = "customName",
-            sourceCode = "fun originalName(): String = \"test\""
-        )
-
-        // When
-        val result = functionService.createFunction(project.id, request)
-
-        // Then
-        assertEquals("customName", result.name)
-        assertEquals(FunctionStatus.PENDING, result.status)
-
-        // Verify function exists in database
-        val fromDb = functionRepository.findById(result.id)
-        assertNotNull(fromDb)
-        assertEquals("customName", fromDb.name)
     }
 
     @Test

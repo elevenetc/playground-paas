@@ -72,14 +72,12 @@ data class UpdateProjectRequest(
 
 @Serializable
 data class CreateFunctionRequest(
-    val name: String? = null,
     val sourceCode: String
 )
 
 @Serializable
 data class UpdateFunctionRequest(
-    val name: String? = null,
-    val sourceCode: String? = null
+    val sourceCode: String
 )
 
 @Serializable

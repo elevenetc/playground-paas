@@ -12,6 +12,9 @@ repositories {
 }
 
 dependencies {
+    // Function metadata reader
+    implementation(project(":function-metadata-reader"))
+
     // Ktor Server
     val ktorVersion = "2.3.12"
     implementation("io.ktor:ktor-server-core:$ktorVersion")
