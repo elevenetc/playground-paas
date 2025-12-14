@@ -17,6 +17,7 @@ import kotlinx.serialization.serializer
 import org.elevenetc.playground.paas.foundation.database.FunctionStatusHistoryTable
 import org.elevenetc.playground.paas.foundation.database.FunctionsTable
 import org.elevenetc.playground.paas.foundation.database.ProjectsTable
+import org.elevenetc.playground.paas.foundation.events.FunctionStatusEventBus
 import org.elevenetc.playground.paas.foundation.repositories.FunctionRepository
 import org.elevenetc.playground.paas.foundation.repositories.FunctionStatusHistoryRepository
 import org.elevenetc.playground.paas.foundation.repositories.ProjectRepository
@@ -51,7 +52,8 @@ fun Application.testModule(resetDatabase: Boolean = true) {
     // Initialize repositories
     val projectRepository = ProjectRepository()
     val functionStatusHistoryRepository = FunctionStatusHistoryRepository()
-    val functionRepository = FunctionRepository(functionStatusHistoryRepository)
+    val eventBus = FunctionStatusEventBus()
+    val functionRepository = FunctionRepository(functionStatusHistoryRepository, eventBus)
 
     // Initialize services
     val dockerBuildService = DockerBuildService(Kind(), Docker())

@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.runTest
 import org.elevenetc.playground.paas.foundation.database.FunctionStatusHistoryTable
 import org.elevenetc.playground.paas.foundation.database.FunctionsTable
 import org.elevenetc.playground.paas.foundation.database.ProjectsTable
+import org.elevenetc.playground.paas.foundation.events.FunctionStatusEventBus
 import org.elevenetc.playground.paas.foundation.models.FunctionStatus
 import org.elevenetc.playground.paas.foundation.repositories.FunctionRepository
 import org.elevenetc.playground.paas.foundation.repositories.FunctionStatusHistoryRepository
@@ -64,7 +65,8 @@ class FunctionServiceTest {
         // Create real repositories with real database
         projectRepository = ProjectRepository()
         val functionStatusHistoryRepository = FunctionStatusHistoryRepository()
-        functionRepository = FunctionRepository(functionStatusHistoryRepository)
+        val eventBus = FunctionStatusEventBus()
+        functionRepository = FunctionRepository(functionStatusHistoryRepository, eventBus)
 
         // Create real ProjectService with real repository
         projectService = ProjectService(projectRepository)

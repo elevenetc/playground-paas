@@ -14,10 +14,12 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
 import org.elevenetc.playground.paas.foundation.database.DatabaseFactory
+import org.elevenetc.playground.paas.foundation.events.FunctionStatusEventBus
 import org.elevenetc.playground.paas.foundation.repositories.FunctionRepository
 import org.elevenetc.playground.paas.foundation.repositories.FunctionStatusHistoryRepository
 import org.elevenetc.playground.paas.foundation.repositories.ProjectRepository
 import org.elevenetc.playground.paas.foundation.routes.functionRoutes
+import org.elevenetc.playground.paas.foundation.routes.functionStatusEventsRoutes
 import org.elevenetc.playground.paas.foundation.routes.healthRoutes
 import org.elevenetc.playground.paas.foundation.routes.projectRoutes
 import org.elevenetc.playground.paas.foundation.services.*
@@ -44,10 +46,13 @@ fun Application.module(appConfig: Dotenv) {
     // Initialize database
     DatabaseFactory.init(appConfig)
 
+    // Initialize event bus for SSE
+    val functionStatusEventBus = FunctionStatusEventBus()
+
     // Initialize repositories
     val projectRepository = ProjectRepository()
     val functionStatusHistoryRepository = FunctionStatusHistoryRepository()
-    val functionRepository = FunctionRepository(functionStatusHistoryRepository)
+    val functionRepository = FunctionRepository(functionStatusHistoryRepository, functionStatusEventBus)
 
     // Initialize services
     val dockerService = DockerService(appConfig)
@@ -107,6 +112,7 @@ fun Application.module(appConfig: Dotenv) {
         healthRoutes(dockerService)
         projectRoutes(projectService)
         functionRoutes(functionService, projectService)
+        functionStatusEventsRoutes(functionStatusEventBus)
     }
 
     // Shutdown hook

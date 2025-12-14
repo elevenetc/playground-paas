@@ -1,8 +1,13 @@
 package org.elevenetc.playground.paas.foundation.repositories
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.elevenetc.playground.paas.foundation.database.FunctionsTable
+import org.elevenetc.playground.paas.foundation.events.FunctionStatusEvent
+import org.elevenetc.playground.paas.foundation.events.FunctionStatusEventBus
 import org.elevenetc.playground.paas.foundation.models.Function
 import org.elevenetc.playground.paas.foundation.models.FunctionParameter
 import org.elevenetc.playground.paas.foundation.models.FunctionStatus
@@ -13,8 +18,10 @@ import java.time.Instant
 import java.util.*
 
 class FunctionRepository(
-    private val statusHistoryRepository: FunctionStatusHistoryRepository
+    private val statusHistoryRepository: FunctionStatusHistoryRepository,
+    private val eventBus: FunctionStatusEventBus
 ) {
+    private val eventScope = CoroutineScope(Dispatchers.Default)
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -48,6 +55,11 @@ class FunctionRepository(
                 prevStatus = null,
                 toStatus = pendingStatus
             )
+
+            // Emit status event
+            eventScope.launch {
+                eventBus.emit(FunctionStatusEvent(id, pendingStatus))
+            }
 
             Function(
                 id = id,
@@ -140,6 +152,11 @@ class FunctionRepository(
                 metadata = if (errorMessage != null) mapOf("error" to errorMessage) else null
             )
 
+            // Emit status event
+            eventScope.launch {
+                eventBus.emit(FunctionStatusEvent(id, status, errorMessage))
+            }
+
             findById(id)
         }
     }
@@ -174,14 +191,29 @@ class FunctionRepository(
                 toStatus = status
             )
 
+            eventScope.launch {
+                eventBus.emit(FunctionStatusEvent(functionId, status))
+            }
+
             findById(functionId)
         }
     }
 
     fun delete(id: String): Boolean {
-        return transaction {
-            FunctionsTable.deleteWhere { FunctionsTable.id eq id } > 0
+        val deleted = transaction {
+            val function = findById(id)
+            val wasDeleted = FunctionsTable.deleteWhere { FunctionsTable.id eq id } > 0
+
+            if (wasDeleted && function != null) {
+                eventScope.launch {
+                    eventBus.emit(FunctionStatusEvent(id, function.status))
+                }
+            }
+
+            wasDeleted
         }
+
+        return deleted
     }
 
     private fun rowToFunction(row: ResultRow): Function {
