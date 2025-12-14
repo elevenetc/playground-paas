@@ -10,6 +10,7 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/foundation" />
+            <option value="$PROJECT_DIR$/function-metadata-reader" />
           </set>
         </option>
       </GradleProjectSettings>

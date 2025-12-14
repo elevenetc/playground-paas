@@ -4,3 +4,4 @@ plugins {
 rootProject.name = "playground-paas"
 
 include("foundation")
+include("function-metadata-reader")
