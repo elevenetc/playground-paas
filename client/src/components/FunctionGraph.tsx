@@ -32,7 +32,6 @@ const nodeTypes = {
 
 export function FunctionGraph({projectId}: FunctionGraphProps) {
     const [isCreating, setIsCreating] = useState(false);
-    const [newFunctionName, setNewFunctionName] = useState('');
     const [newFunctionCode, setNewFunctionCode] = useState('');
     const [sourceModalOpen, setSourceModalOpen] = useState(false);
     const [debugSource, setDebugSource] = useState<string | null>(null);
@@ -82,12 +81,11 @@ export function FunctionGraph({projectId}: FunctionGraphProps) {
     });
 
     const createMutation = useMutation({
-        mutationFn: (data: { name?: string; sourceCode: string }) =>
+        mutationFn: (data: { sourceCode: string }) =>
             functionsApi.create(projectId, data),
         onSuccess: () => {
             queryClient.invalidateQueries({queryKey: ['functions', projectId]});
             setIsCreating(false);
-            setNewFunctionName('');
             setNewFunctionCode('');
         },
     });
@@ -265,7 +263,6 @@ export function FunctionGraph({projectId}: FunctionGraphProps) {
     const handleCreate = () => {
         if (!newFunctionCode.trim()) return;
         createMutation.mutate({
-            name: newFunctionName || undefined,
             sourceCode: newFunctionCode,
         });
     };
@@ -316,13 +313,6 @@ export function FunctionGraph({projectId}: FunctionGraphProps) {
                 {isCreating && (
                     <div className="p-4 border-b border-gray-200 bg-gray-50">
                         <div className="space-y-2">
-                            <input
-                                type="text"
-                                placeholder="Function name (optional, will be extracted from code)"
-                                value={newFunctionName}
-                                onChange={(e) => setNewFunctionName(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                            />
                             <textarea
                                 placeholder="Source code (e.g., fun add(a: Int, b: Int): Int = a + b)"
                                 value={newFunctionCode}
@@ -342,7 +332,6 @@ export function FunctionGraph({projectId}: FunctionGraphProps) {
                                 <button
                                     onClick={() => {
                                         setIsCreating(false);
-                                        setNewFunctionName('');
                                         setNewFunctionCode('');
                                     }}
                                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"

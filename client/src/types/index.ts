@@ -56,7 +56,6 @@ export interface Function {
 }
 
 export interface CreateFunctionRequest {
-  name?: string | null;
   sourceCode: string;
 }
 
